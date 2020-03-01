@@ -1,10 +1,12 @@
-int prevState,currState,windCount, sens1flag,sens2flag;
-int prevState_1,currState_1,windCount_1;
+int windCount, Direction;
+int prevState [2];
+int currState[2];
 int LED = 0;
 double volts = 5.0/1023;
 double angle,angle_1;
 
-
+int sens1prev, sens1time, sens1prevtime;
+int sens2prev,sens2time, sens2prevtime;
 
 
 /*Author: Brandon Bwanakocha
@@ -12,11 +14,10 @@ double angle,angle_1;
  * parameters: pointers to state bits
 */
 
-int posedge(int* prevState, int* currState){
+int posedge(int prev, int curr){
 
-  if(*prevState ^ *currState){
-    *prevState = *currState;
-    if(*currState == HIGH){
+  if(prev ^ curr){
+    if(curr == HIGH){
 
       return 1;
       }
@@ -24,6 +25,40 @@ int posedge(int* prevState, int* currState){
   return 0;
   }
 
+double getAngle(int dir){
+  if(dir > 1)
+   return windCount*3.6;
+   
+  windCount = dir ? windCount + 1: windCount-1;
+  
+  return windCount * 3.6;
+  }
+  
+int sensorDirec(int* prev,int* curr){
+// finite state machine
+// Values producing positive direction
+if((prev[0] == 0 && prev[1] == 0) && (curr[0] == 1 && curr[1] == 0))
+ return 1;
+if((prev[0] == 1 && prev[1] == 0) && (curr[0] == 1 && curr[1] == 1))
+ return 1;
+if((prev[0] == 1 && prev[1] == 1) && (curr[0] == 0 && curr[1] == 1))
+ return 1;
+if((prev[0] == 0 && prev[1] == 1) && (curr[0] == 0 && curr[1] == 0))
+ return 1;
+
+// values producing negative direction
+
+ if((prev[0] == 0 && prev[1] == 0) && (curr[0] == 0 && curr[1] == 1))
+ return 0;
+ if((prev[0] == 0 && prev[1] == 1) && (curr[0] == 1 && curr[1] == 1))
+ return 0;
+ if((prev[0] == 1 && prev[1] == 1) && (curr[0] == 1 && curr[1] == 0))
+ return 0;
+ if((prev[0] == 1 && prev[1] == 0) && (curr[0] == 0 && curr[1] == 0))
+ return 0;
+
+ return 2;
+  }
 
 
 
@@ -31,36 +66,42 @@ int posedge(int* prevState, int* currState){
 void setup() {
 // start with previous state given by the thing.
 
-  prevState = analogRead(A5)*volts > 4.0 ? HIGH: LOW; 
-  prevState_1 = analogRead(A4)*volts > 4.0 ? HIGH: LOW;
+  prevState[0] = analogRead(A5)*volts > 4.0 ? HIGH: LOW; 
+  prevState[1] = analogRead(A4)*volts > 4.0 ? HIGH: LOW;
+
   pinMode(LED, OUTPUT);
+  pinMode(2,OUTPUT);
+  pinMode(3,OUTPUT);
   Serial.begin(9600);
   windCount = 0;
-  windCount_1 = 0;
+  Direction = 2;
+
 
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  currState = analogRead(A5)*volts> 4.0 ? HIGH: LOW;
-  currState_1 = analogRead(A4)*volts> 4.0 ? HIGH: LOW;
+  currState[0] = analogRead(A5)*volts> 4.0 ? HIGH: LOW;
+  currState[1] = analogRead(A4)*volts> 4.0 ? HIGH: LOW;
 
-  // check for posedge
+
+    
+    Direction = sensorDirec(prevState, currState);
+   if(posedge(prevState[0], currState[0])){
+    angle = getAngle(Direction);
+    }
+    prevState[0] = currState[0];
+    prevState[1] = currState[1];
+    
+
+
+    
   
-  sens1flag = posedge(&prevState,&currState);
-  sens2flag = posedge(&prevState_1,&currState_1);
-
-  
- // digitalWrite(LED, posedge(&prevState,&currState)? HIGH: LOW);
-  windCount = sens1flag ? windCount + 1: windCount;
-  windCount_1 = sens2flag ? windCount_1 + 1: windCount_1;
-  angle = windCount * 3.6;
-  angle_1 = windCount_1 * 3.6;
-
 
  Serial.print(angle);
- Serial.print("   ");
- Serial.print(angle_1);
+ Serial.print("     ");
+ Serial.print(Direction);
  Serial.print("\n");
+
 
 }
